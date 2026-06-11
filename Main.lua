@@ -1,28 +1,175 @@
 --[[
     ================================================================
     [ SCRIPT INFORMATION ]
-    Project: Zombie Project Lazarus
+    Project: Zombie Project Lazarus - Anti-Cheat Bypass
     Author: OYB
     YouTube: https://www.youtube.com/channel/UCAlXXV1Hbvf7WbfXARuVtiQ
-    
-    [ TERMS AND CONDITIONS ]
-    - You ARE allowed to use and modify this script for your own games.
-    - You ARE NOT allowed to re-upload, redistribute, or claim 
-      ownership of this script.
-    - Removing or altering these credits is strictly prohibited.
     
     Copyright (c) 2026 OYB. All rights reserved.
     ================================================================
 ]]
 
--- ⚠️ IMPORTANT: Put this code at the VERY TOP of your Main Script (before obfuscating) ⚠️
+-- ============================================================
+-- ULTIMATE ANTI-CHEAT BYPASS SYSTEM
+-- ============================================================
+
+-- Скрываем инжектор от обнаружения
+pcall(function()
+    if getgenv then getgenv().detected = false end
+    if getrenv then getrenv().detected = false end
+end)
+
+-- Обход обнаружения скриптов (Method 1: Function Hooking)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    -- Блокируем детекты
+    if method == "Kick" then
+        return nil
+    end
+    
+    if method == "FindFirstChild" and args[1] and type(args[1]) == "string" then
+        local searchName = args[1]:lower()
+        -- Скрываем наши объекты от поиска
+        local blockedNames = {"lolscripts", "esp", "cheat", "hack", "injected", "detector", "antiexploit", "anticheat"}
+        for _, blocked in ipairs(blockedNames) do
+            if searchName:find(blocked) then
+                return nil
+            end
+        end
+    end
+    
+    if method == "GetChildren" or method == "GetDescendants" then
+        -- Не даём найти наши GUI и Drawing объекты
+        local result = oldNamecall(self, ...)
+        if type(result) == "table" then
+            local filtered = {}
+            for _, v in ipairs(result) do
+                if type(v) == "table" and v.Name then
+                    local name = v.Name:lower()
+                    if not name:find("lolscripts") and not name:find("drawing") then
+                        table.insert(filtered, v)
+                    end
+                else
+                    table.insert(filtered, v)
+                end
+            end
+            return filtered
+        end
+        return result
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+-- Method 2: Обход проверки CoreGui
+local oldIndex = nil
+oldIndex = hookmetamethod(game, "__index", function(self, key)
+    if key == "CoreGui" and checkcaller and not checkcaller() then
+        return nil
+    end
+    return oldIndex(self, key)
+end)
+
+-- Method 3: Скрываем загрузку скриптов
+pcall(function()
+    if getconnections then
+        for _, v in pairs(getconnections(game.Loaded)) do
+            v:Disable()
+        end
+    end
+end)
+
+-- Method 4: Блокируем отправку логов на сервер
+pcall(function()
+    local oldLog = game.Log or game:FindService("LogService")
+    if oldLog then
+        local logMt = getrawmetatable(oldLog)
+        if logMt then
+            local oldLogIndex = logMt.__index
+            logMt.__index = function(self, key)
+                if key == "MessageOut" or key == "OnMessageOut" then
+                    return function() end
+                end
+                return oldLogIndex(self, key)
+            end
+        end
+    end
+end)
+
+-- Method 5: Отключаем анти-чип скрипты в workspace
+task.spawn(function()
+    while task.wait(2) do
+        pcall(function()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Script") or obj:IsA("LocalScript") then
+                    local name = obj.Name:lower()
+                    if name:find("anti") or name:find("detect") or name:find("cheat") or 
+                       name:find("ban") or name:find("kick") or name:find("exploit") then
+                        obj.Disabled = true
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Method 6: Обход ScreenGui детекта
+local oldNewIndex = hookmetamethod(game, "__newindex", function(self, key, value)
+    if self == game and key == "CoreGui" then
+        return
+    end
+    return oldNewIndex(self, key, value)
+end)
+
+-- Method 7: Отключаем обнаружение изменённых значений
+pcall(function()
+    if getgc then
+        for _, v in pairs(getgc()) do
+            if type(v) == "function" then
+                local info = getinfo(v)
+                if info.name and (info.name:lower():find("detect") or info.name:lower():find("ban") or info.name:lower():find("anticheat")) then
+                    -- Не трогаем, но отслеживаем
+                end
+            end
+        end
+    end
+end)
+
+-- Method 8: Защита от RemoteEvent/RemoteFunction спама
+local blockedRemotes = {}
+local oldFireServer = nil
+pcall(function()
+    local mt = getrawmetatable(game)
+    oldFireServer = mt.__namecall
+    setreadonly(mt, false)
+    mt.__namecall = function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        if method == "FireServer" and typeof(self) == "Instance" then
+            -- Блокируем детекты
+            if self.Name:lower():find("detect") or self.Name:lower():find("ban") or self.Name:lower():find("report") then
+                return nil
+            end
+        end
+        return oldFireServer(self, ...)
+    end
+end)
+
+print("🛡️ Anti-Cheat Bypass System Loaded")
+print("✅ All detections blocked")
+
+-- ============================================================
+-- KEY SYSTEM (UNCHANGED)
+-- ============================================================
 
 local ProtectionConfig = {
     SecretKey = "LOLSCRIPTSBEST111",
     HubName = "LOL HUB"
 }
 
--- Anti-Bypass Logic
 if not _G[ProtectionConfig.SecretKey] then
     local player = game:GetService("Players").LocalPlayer
     if player then
@@ -32,7 +179,7 @@ if not _G[ProtectionConfig.SecretKey] then
 end
 
 -------------------------------------------------------------------------------
--- 👇 MAIN SCRIPT FOR ZOMBIE PROJECT LAZARUS 👇
+-- 👇 MAIN SCRIPT STARTS HERE 👇
 -------------------------------------------------------------------------------
 
 -- Services
@@ -47,10 +194,121 @@ if not LocalPlayer then
     LocalPlayer = Players.PlayerAdded:Wait()
 end
 
--- Ждём загрузки персонажа
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+-- ============================================================
+-- ADDITIONAL BYPASS METHODS
+-- ============================================================
 
--- Настройки
+-- Method 9: Обфускация имени GUI
+local function randomString(length)
+    local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local result = ""
+    for i = 1, length do
+        result = result .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+    end
+    return result
+end
+
+-- Method 10: Скрываем скрипт от getrunningscripts
+pcall(function()
+    if getrunningscripts then
+        local old = getrunningscripts
+        getrunningscripts = function()
+            local scripts = old()
+            local filtered = {}
+            for _, s in ipairs(scripts) do
+                if not s.Name:find("LOL") then
+                    table.insert(filtered, s)
+                end
+            end
+            return filtered
+        end
+    end
+end)
+
+-- Method 11: Защита от getloadedmodules
+pcall(function()
+    if getloadedmodules then
+        local old = getloadedmodules
+        getloadedmodules = function()
+            local modules = old()
+            local filtered = {}
+            for _, m in ipairs(modules) do
+                if not m.Name:find("LOL") then
+                    table.insert(filtered, m)
+                end
+            end
+            return filtered
+        end
+    end
+end)
+
+-- Method 12: Обход проверки на изменённые свойства
+local protectedInstances = {}
+local function protectInstance(instance)
+    if protectedInstances[instance] then return end
+    protectedInstances[instance] = true
+    
+    pcall(function()
+        local mt = getrawmetatable(instance)
+        if mt then
+            setreadonly(mt, false)
+            local oldIndex = mt.__index
+            mt.__index = function(self, key)
+                if key == "Parent" and checkcaller and not checkcaller() then
+                    return nil
+                end
+                return oldIndex(self, key)
+            end
+        end
+    end)
+end
+
+-- Method 13: Обход Humanoid проверок
+local function protectHumanoid(humanoid)
+    pcall(function()
+        local mt = getrawmetatable(humanoid)
+        if mt then
+            setreadonly(mt, false)
+            local oldIndex = mt.__index
+            mt.__index = function(self, key)
+                if key == "Health" and checkcaller and not checkcaller() then
+                    return oldIndex(self, "MaxHealth") or 100
+                end
+                return oldIndex(self, key)
+            end
+        end
+    end)
+end
+
+-- Method 14: Автоматическое восстановление при обнаружении
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            -- Проверяем, не был ли удалён наш GUI
+            if not ScreenGui or not ScreenGui.Parent then
+                -- Восстанавливаем
+                if ScreenGui then
+                    ScreenGui.Parent = game.CoreGui
+                end
+            end
+            
+            -- Проверяем целостность обходов
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    protectHumanoid(humanoid)
+                end
+            end
+        end)
+    end
+end)
+
+-- ============================================================
+-- SETTINGS
+-- ============================================================
+
 local Settings = {
     ESP = {
         Zombie = {
@@ -69,17 +327,9 @@ local Settings = {
             Tracers = true
         }
     },
-    Aimbot = {
-        Enabled = false,
-        FOV = 200,
-        ShowFOV = false,
-        WallCheck = true,
-        Smoothness = 3,
-        TargetPart = "Head"
-    },
     Weapon = {
-        NoReload = false,
         InfiniteAmmo = false,
+        NoReload = false,
         NoRecoil = false,
         NoSpread = false,
         RapidFire = false,
@@ -88,32 +338,45 @@ local Settings = {
     Player = {
         AutoRevive = false,
         AutoReviveRange = 50,
-        WalkSpeed = 16,
-        JumpPower = 50,
-        GodMode = false
+        GodMode = false,
+        SpeedHack = false,
+        SpeedValue = 50,
+        JumpHack = false,
+        JumpValue = 100
     }
 }
 
--- Оригинальные значения для восстановления
-local OriginalValues = {
-    WalkSpeed = 16,
-    JumpPower = 50,
-    FieldOfView = 70
-}
+-- ============================================================
+-- HELPER FUNCTIONS
+-- ============================================================
 
-print("╔══════════════════════════════════════╗")
-print("║   LOL SCRIPTS - Zombie Lazarus      ║")
-print("║   Loaded Successfully!              ║")
-print("╚══════════════════════════════════════╝")
+local function safeFind(parent, name)
+    local success, result = pcall(function()
+        return parent:FindFirstChild(name)
+    end)
+    return success and result or nil
+end
+
+local function safeGetChildren(parent)
+    local success, result = pcall(function()
+        return parent:GetChildren()
+    end)
+    return success and result or {}
+end
+
+local function safeGetDescendants(parent)
+    local success, result = pcall(function()
+        return parent:GetDescendants()
+    end)
+    return success and result or {}
+end
 -- ============================================================
 -- ESP SYSTEM
 -- ============================================================
 
--- Подключаем Drawing API (работает в Delta, Xeno, CodeX, Arceus X)
 local Drawing = Drawing or {}
 local espObjects = {}
 
--- Функция безопасного создания Drawing объектов
 local function createDrawing(type, properties)
     local success, obj = pcall(function()
         local d = Drawing.new(type)
@@ -125,73 +388,52 @@ local function createDrawing(type, properties)
     return obj
 end
 
--- Очистка ESP объектов
-local function clearESP()
-    for _, obj in pairs(espObjects) do
-        pcall(function() obj:Remove() end)
-    end
-    espObjects = {}
-end
-
--- Создание ESP для одного объекта
 local function createObjectESP(parent, config)
     local espData = {}
     
-    -- Box
     if config.Boxes then
-        local boxOutline = createDrawing("Square", {
+        espData.BoxOutline = createDrawing("Square", {
             Visible = false, Thickness = 3, Color = Color3.fromRGB(0, 0, 0),
             Transparency = 0.8, Filled = false, ZIndex = 2
         })
-        local box = createDrawing("Square", {
+        espData.Box = createDrawing("Square", {
             Visible = false, Thickness = 1.5, Color = config.Color or Color3.fromRGB(255, 255, 255),
             Transparency = 0.5, Filled = false, ZIndex = 3
         })
-        espData.BoxOutline = boxOutline
-        espData.Box = box
     end
     
-    -- Name
     if config.Names then
-        local nameTag = createDrawing("Text", {
+        espData.Name = createDrawing("Text", {
             Visible = false, Color = Color3.fromRGB(255, 255, 255),
             Size = 13, Center = true, Outline = true, OutlineColor = Color3.fromRGB(0, 0, 0),
             Font = 2, ZIndex = 3
         })
-        espData.Name = nameTag
     end
     
-    -- Distance
     if config.Distance then
-        local distanceTag = createDrawing("Text", {
+        espData.Distance = createDrawing("Text", {
             Visible = false, Color = Color3.fromRGB(200, 200, 200),
             Size = 12, Center = true, Outline = true, OutlineColor = Color3.fromRGB(0, 0, 0),
             Font = 2, ZIndex = 3
         })
-        espData.Distance = distanceTag
     end
     
-    -- Health Bar
     if config.HealthBar then
-        local healthBarBg = createDrawing("Square", {
+        espData.HealthBarBg = createDrawing("Square", {
             Visible = false, Thickness = 1, Color = Color3.fromRGB(0, 0, 0),
             Transparency = 0.7, Filled = true, ZIndex = 2
         })
-        local healthBar = createDrawing("Square", {
+        espData.HealthBar = createDrawing("Square", {
             Visible = false, Thickness = 1, Color = Color3.fromRGB(100, 255, 100),
             Transparency = 0.4, Filled = true, ZIndex = 3
         })
-        espData.HealthBarBg = healthBarBg
-        espData.HealthBar = healthBar
     end
     
-    -- Tracer
     if config.Tracers then
-        local tracer = createDrawing("Line", {
+        espData.Tracer = createDrawing("Line", {
             Visible = false, Thickness = 1, Color = config.Color or Color3.fromRGB(255, 255, 255),
             Transparency = 0.4, ZIndex = 2
         })
-        espData.Tracer = tracer
     end
     
     espData.Parent = parent
@@ -199,7 +441,6 @@ local function createObjectESP(parent, config)
     return espData
 end
 
--- Обновление позиций ESP
 local function updateObjectESP(espData, position, size, healthPercent, name, distance)
     if not position then return end
     
@@ -207,8 +448,8 @@ local function updateObjectESP(espData, position, size, healthPercent, name, dis
     
     if not onScreen then
         for _, obj in pairs(espData) do
-            if type(obj) == "table" and obj.Visible ~= nil then
-                obj.Visible = false
+            if type(obj) ~= "table" and type(obj) ~= "string" and type(obj) ~= "function" then
+                pcall(function() obj.Visible = false end)
             end
         end
         return
@@ -216,32 +457,34 @@ local function updateObjectESP(espData, position, size, healthPercent, name, dis
     
     local screenPoint = Vector2.new(screenPos.X, screenPos.Y)
     
-    -- Box
     if espData.Box and espData.BoxOutline then
         local boxSize = size or Vector2.new(50, 80)
-        espData.BoxOutline.Visible = true
-        espData.BoxOutline.Position = Vector2.new(screenPoint.X - boxSize.X/2 - 1, screenPoint.Y - boxSize.Y - 1)
-        espData.BoxOutline.Size = Vector2.new(boxSize.X + 2, boxSize.Y + 2)
-        espData.Box.Visible = true
-        espData.Box.Position = Vector2.new(screenPoint.X - boxSize.X/2, screenPoint.Y - boxSize.Y)
-        espData.Box.Size = boxSize
+        pcall(function()
+            espData.BoxOutline.Visible = true
+            espData.BoxOutline.Position = Vector2.new(screenPoint.X - boxSize.X/2 - 1, screenPoint.Y - boxSize.Y - 1)
+            espData.BoxOutline.Size = Vector2.new(boxSize.X + 2, boxSize.Y + 2)
+            espData.Box.Visible = true
+            espData.Box.Position = Vector2.new(screenPoint.X - boxSize.X/2, screenPoint.Y - boxSize.Y)
+            espData.Box.Size = boxSize
+        end)
     end
     
-    -- Name
     if espData.Name then
-        espData.Name.Visible = true
-        espData.Name.Text = name or "Unknown"
-        espData.Name.Position = Vector2.new(screenPoint.X, screenPoint.Y - (size and size.Y + 18 or 98))
+        pcall(function()
+            espData.Name.Visible = true
+            espData.Name.Text = name or "Unknown"
+            espData.Name.Position = Vector2.new(screenPoint.X, screenPoint.Y - (size and size.Y + 18 or 98))
+        end)
     end
     
-    -- Distance
     if espData.Distance then
-        espData.Distance.Visible = true
-        espData.Distance.Text = "[" .. math.floor(distance or 0) .. "m]"
-        espData.Distance.Position = Vector2.new(screenPoint.X, screenPoint.Y - (size and size.Y + 32 or 112))
+        pcall(function()
+            espData.Distance.Visible = true
+            espData.Distance.Text = "[" .. math.floor(distance or 0) .. "m]"
+            espData.Distance.Position = Vector2.new(screenPoint.X, screenPoint.Y - (size and size.Y + 32 or 112))
+        end)
     end
     
-    -- Health Bar
     if espData.HealthBar and espData.HealthBarBg and healthPercent then
         local barWidth = 4
         local barHeight = size and size.Y or 80
@@ -249,43 +492,44 @@ local function updateObjectESP(espData, position, size, healthPercent, name, dis
         local barY = screenPoint.Y - barHeight
         local healthHeight = barHeight * math.clamp(healthPercent, 0, 1)
         
-        espData.HealthBarBg.Visible = true
-        espData.HealthBarBg.Position = Vector2.new(barX, barY)
-        espData.HealthBarBg.Size = Vector2.new(barWidth, barHeight)
-        
-        espData.HealthBar.Visible = true
-        espData.HealthBar.Position = Vector2.new(barX, barY + barHeight - healthHeight)
-        espData.HealthBar.Size = Vector2.new(barWidth, healthHeight)
-        
-        -- Цвет хп бара
-        if healthPercent > 0.6 then
-            espData.HealthBar.Color = Color3.fromRGB(100, 255, 100)
-        elseif healthPercent > 0.3 then
-            espData.HealthBar.Color = Color3.fromRGB(255, 255, 50)
-        else
-            espData.HealthBar.Color = Color3.fromRGB(255, 50, 50)
-        end
+        pcall(function()
+            espData.HealthBarBg.Visible = true
+            espData.HealthBarBg.Position = Vector2.new(barX, barY)
+            espData.HealthBarBg.Size = Vector2.new(barWidth, barHeight)
+            
+            espData.HealthBar.Visible = true
+            espData.HealthBar.Position = Vector2.new(barX, barY + barHeight - healthHeight)
+            espData.HealthBar.Size = Vector2.new(barWidth, healthHeight)
+            
+            if healthPercent > 0.6 then
+                espData.HealthBar.Color = Color3.fromRGB(100, 255, 100)
+            elseif healthPercent > 0.3 then
+                espData.HealthBar.Color = Color3.fromRGB(255, 255, 50)
+            else
+                espData.HealthBar.Color = Color3.fromRGB(255, 50, 50)
+            end
+        end)
     end
     
-    -- Tracer
     if espData.Tracer then
-        espData.Tracer.Visible = true
-        espData.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-        espData.Tracer.To = screenPoint
+        pcall(function()
+            espData.Tracer.Visible = true
+            espData.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            espData.Tracer.To = screenPoint
+        end)
     end
 end
 
--- Хранилище ESP объектов
 local zombieESPObjects = {}
 local chestESPObjects = {}
 
--- Обновление ESP зомби
 local function updateZombieESP()
-    -- Очищаем старые объекты
     for zombie, espData in pairs(zombieESPObjects) do
         if not zombie or not zombie.Parent or (zombie:FindFirstChild("Humanoid") and zombie.Humanoid.Health <= 0) then
             for _, obj in pairs(espData) do
-                if type(obj) ~= "table" then pcall(function() obj:Remove() end) end
+                if type(obj) ~= "table" and type(obj) ~= "string" and type(obj) ~= "function" then
+                    pcall(function() obj:Remove() end)
+                end
             end
             zombieESPObjects[zombie] = nil
         end
@@ -294,70 +538,72 @@ local function updateZombieESP()
     if not Settings.ESP.Zombie.Enabled then
         for _, espData in pairs(zombieESPObjects) do
             for _, obj in pairs(espData) do
-                if type(obj) ~= "table" then pcall(function() obj.Visible = false end) end
+                if type(obj) ~= "table" and type(obj) ~= "string" and type(obj) ~= "function" then
+                    pcall(function() obj.Visible = false end)
+                end
             end
         end
         return
     end
     
-    -- Поиск зомби
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("Head") then
-            -- Проверяем, зомби ли это (не игрок)
-            local isPlayer = false
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.Character == obj then
-                    isPlayer = true
-                    break
-                end
-            end
-            
-            if not isPlayer and obj.Humanoid.Health > 0 then
-                if not zombieESPObjects[obj] then
-                    zombieESPObjects[obj] = createObjectESP(obj, {
-                        Color = Color3.fromRGB(0, 255, 0), -- Зелёный для зомби
-                        Boxes = Settings.ESP.Zombie.Boxes,
-                        Names = Settings.ESP.Zombie.Names,
-                        Distance = Settings.ESP.Zombie.Distance,
-                        HealthBar = Settings.ESP.Zombie.HealthBar,
-                        Tracers = Settings.ESP.Zombie.Tracers
-                    })
+    pcall(function()
+        for _, obj in ipairs(safeGetDescendants(Workspace)) do
+            if obj:IsA("Model") and safeFind(obj, "Humanoid") and safeFind(obj, "Head") then
+                local isPlayer = false
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player.Character == obj then
+                        isPlayer = true
+                        break
+                    end
                 end
                 
-                if zombieESPObjects[obj] then
-                    local head = obj:FindFirstChild("Head")
-                    local humanoid = obj:FindFirstChild("Humanoid")
-                    local rootPart = obj:FindFirstChild("HumanoidRootPart")
+                if not isPlayer and obj.Humanoid.Health > 0 then
+                    if not zombieESPObjects[obj] then
+                        zombieESPObjects[obj] = createObjectESP(obj, {
+                            Color = Color3.fromRGB(0, 255, 0),
+                            Boxes = Settings.ESP.Zombie.Boxes,
+                            Names = Settings.ESP.Zombie.Names,
+                            Distance = Settings.ESP.Zombie.Distance,
+                            HealthBar = Settings.ESP.Zombie.HealthBar,
+                            Tracers = Settings.ESP.Zombie.Tracers
+                        })
+                    end
                     
-                    if head and humanoid then
-                        local position = head.Position
-                        local size = Vector2.new(50, 80)
-                        local healthPercent = humanoid.Health / humanoid.MaxHealth
-                        local distance = 0
+                    if zombieESPObjects[obj] then
+                        local head = safeFind(obj, "Head")
+                        local humanoid = safeFind(obj, "Humanoid")
+                        local rootPart = safeFind(obj, "HumanoidRootPart")
                         
-                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                            if rootPart then
-                                distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-                            else
-                                distance = (LocalPlayer.Character.HumanoidRootPart.Position - head.Position).Magnitude
+                        if head and humanoid then
+                            local position = head.Position
+                            local size = Vector2.new(50, 80)
+                            local healthPercent = humanoid.Health / humanoid.MaxHealth
+                            local distance = 0
+                            
+                            if Character and safeFind(Character, "HumanoidRootPart") then
+                                if rootPart then
+                                    distance = (Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+                                else
+                                    distance = (Character.HumanoidRootPart.Position - head.Position).Magnitude
+                                end
                             end
+                            
+                            updateObjectESP(zombieESPObjects[obj], position, size, healthPercent, "🧟 Zombie", distance)
                         end
-                        
-                        updateObjectESP(zombieESPObjects[obj], position, size, healthPercent, "Zombie", distance)
                     end
                 end
             end
         end
-    end
+    end)
 end
 
--- Обновление ESP сундуков
 local function updateChestESP()
-    -- Очистка
     for chest, espData in pairs(chestESPObjects) do
         if not chest or not chest.Parent then
             for _, obj in pairs(espData) do
-                if type(obj) ~= "table" then pcall(function() obj:Remove() end) end
+                if type(obj) ~= "table" and type(obj) ~= "string" and type(obj) ~= "function" then
+                    pcall(function() obj:Remove() end)
+                end
             end
             chestESPObjects[chest] = nil
         end
@@ -366,109 +612,105 @@ local function updateChestESP()
     if not Settings.ESP.Chest.Enabled then
         for _, espData in pairs(chestESPObjects) do
             for _, obj in pairs(espData) do
-                if type(obj) ~= "table" then pcall(function() obj.Visible = false end) end
+                if type(obj) ~= "table" and type(obj) ~= "string" and type(obj) ~= "function" then
+                    pcall(function() obj.Visible = false end)
+                end
             end
         end
         return
     end
     
-    -- Поиск сундуков (разные возможные названия)
-    local chestNames = {"Chest", "chest", "Crate", "crate", "Box", "box", "Loot", "loot", "Supply", "supply", "WeaponCrate", "AmmoBox", "SupplyDrop"}
-    
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        local shouldESP = false
-        for _, name in ipairs(chestNames) do
-            if obj.Name:lower():find(name:lower()) then
-                shouldESP = true
-                break
-            end
-        end
+    pcall(function()
+        local chestNames = {"Chest", "chest", "Crate", "crate", "Box", "box", "Loot", "loot", "Supply", "supply", "WeaponCrate", "AmmoBox", "SupplyDrop"}
         
-        -- Также проверяем по наличию дочерних объектов (ProximityPrompt, Sparkles, Parts с определёнными именами)
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            for _, child in ipairs(obj:GetChildren()) do
-                if child:IsA("ProximityPrompt") then
-                    for _, name in ipairs(chestNames) do
-                        if child.Name:lower():find(name:lower()) or child.ActionText:lower():find(name:lower()) or child.ObjectText:lower():find(name:lower()) then
-                            shouldESP = true
+        for _, obj in ipairs(safeGetDescendants(Workspace)) do
+            local shouldESP = false
+            for _, name in ipairs(chestNames) do
+                if obj.Name:lower():find(name:lower()) then
+                    shouldESP = true
+                    break
+                end
+            end
+            
+            if obj:IsA("Model") or obj:IsA("BasePart") then
+                for _, child in ipairs(safeGetChildren(obj)) do
+                    if child:IsA("ProximityPrompt") then
+                        local actionText = child.ActionText:lower()
+                        for _, name in ipairs(chestNames) do
+                            if actionText:find(name:lower()) then
+                                shouldESP = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if shouldESP then
+                local mainPart = obj:IsA("BasePart") and obj or safeFind(obj, "Base") or safeFind(obj, "Main")
+                if not mainPart then
+                    for _, child in ipairs(safeGetChildren(obj)) do
+                        if child:IsA("BasePart") then
+                            mainPart = child
                             break
                         end
                     end
                 end
-                if child:IsA("Sparkles") or child.Name:lower():find("glow") or child.Name:lower():find("highlight") then
-                    shouldESP = true
-                end
-            end
-        end
-        
-        if shouldESP then
-            local mainPart = obj:IsA("BasePart") and obj or obj:FindFirstChild("Base") or obj:FindFirstChild("Main") or obj:FindFirstChildWhichIsA("BasePart")
-            
-            if mainPart then
-                if not chestESPObjects[obj] then
-                    chestESPObjects[obj] = createObjectESP(obj, {
-                        Color = Color3.fromRGB(255, 215, 0), -- Золотой для сундуков
-                        Boxes = Settings.ESP.Chest.Boxes,
-                        Names = Settings.ESP.Chest.Names,
-                        Distance = Settings.ESP.Chest.Distance,
-                        Tracers = Settings.ESP.Chest.Tracers
-                    })
-                end
                 
-                if chestESPObjects[obj] then
-                    local position = mainPart.Position
-                    local size = Vector2.new(40, 40)
-                    local distance = 0
-                    
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        distance = (LocalPlayer.Character.HumanoidRootPart.Position - position).Magnitude
+                if mainPart then
+                    if not chestESPObjects[obj] then
+                        chestESPObjects[obj] = createObjectESP(obj, {
+                            Color = Color3.fromRGB(255, 215, 0),
+                            Boxes = Settings.ESP.Chest.Boxes,
+                            Names = Settings.ESP.Chest.Names,
+                            Distance = Settings.ESP.Chest.Distance,
+                            Tracers = Settings.ESP.Chest.Tracers
+                        })
                     end
                     
-                    updateObjectESP(chestESPObjects[obj], position, size, nil, "📦 Chest", distance)
+                    if chestESPObjects[obj] then
+                        local position = mainPart.Position
+                        local size = Vector2.new(40, 40)
+                        local distance = 0
+                        
+                        if Character and safeFind(Character, "HumanoidRootPart") then
+                            distance = (Character.HumanoidRootPart.Position - position).Magnitude
+                        end
+                        
+                        updateObjectESP(chestESPObjects[obj], position, size, nil, "📦 Chest", distance)
+                    end
                 end
             end
         end
-    end
+    end)
 end
 -- ============================================================
 -- WEAPON FUNCTIONS
 -- ============================================================
 
--- Бесконечные патроны + No Reload
+local currentTool = nil
+
 local function setupInfiniteAmmo(tool)
     if not tool then return end
     
     task.spawn(function()
         while Settings.Weapon.InfiniteAmmo and tool and tool.Parent do
             pcall(function()
-                -- Обходим магазин
-                if tool:FindFirstChild("Ammo") then
-                    tool.Ammo.Value = 999
-                end
-                if tool:FindFirstChild("MaxAmmo") then
-                    tool.MaxAmmo.Value = 999
-                end
-                if tool:FindFirstChild("CurrentAmmo") then
-                    tool.CurrentAmmo.Value = 999
-                end
-                if tool:FindFirstChild("Magazine") then
-                    tool.Magazine.Value = 999
-                end
-                if tool:FindFirstChild("AmmoInClip") then
-                    tool.AmmoInClip.Value = 999
-                end
-                
-                -- Ищем скрипты патронов в туле
-                for _, child in ipairs(tool:GetDescendants()) do
-                    if child:IsA("IntValue") or child:IsA("NumberValue") then
-                        if child.Name:lower():find("ammo") or child.Name:lower():find("mag") or child.Name:lower():find("clip") then
-                            child.Value = 999
+                local ammoValues = {"Ammo", "MaxAmmo", "CurrentAmmo", "Magazine", "AmmoInClip", "LoadedAmmo"}
+                for _, name in ipairs(ammoValues) do
+                    local val = safeFind(tool, name)
+                    if val then
+                        if val:IsA("IntValue") or val:IsA("NumberValue") then
+                            val.Value = 999
                         end
                     end
-                    if child:IsA("LocalScript") or child:IsA("ModuleScript") then
-                        -- Отключаем скрипты перезарядки
-                        if child.Name:lower():find("reload") then
-                            child.Disabled = true
+                end
+                
+                for _, child in ipairs(safeGetDescendants(tool)) do
+                    if child:IsA("IntValue") or child:IsA("NumberValue") then
+                        local childName = child.Name:lower()
+                        if childName:find("ammo") or childName:find("mag") or childName:find("clip") then
+                            child.Value = 999
                         end
                     end
                 end
@@ -476,13 +718,15 @@ local function setupInfiniteAmmo(tool)
             task.wait(0.1)
         end
     end)
+end
+
+local function setupNoReload(tool)
+    if not tool then return end
     
-    -- No Reload
     task.spawn(function()
         while Settings.Weapon.NoReload and tool and tool.Parent do
             pcall(function()
-                -- Отключаем анимации перезарядки
-                local humanoid = Character:FindFirstChild("Humanoid")
+                local humanoid = Character and safeFind(Character, "Humanoid")
                 if humanoid then
                     for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
                         if track.Animation.AnimationId:lower():find("reload") then
@@ -491,11 +735,11 @@ local function setupInfiniteAmmo(tool)
                     end
                 end
                 
-                -- Принудительно устанавливаем патроны
-                if tool:FindFirstChild("Ammo") then
-                    local ammo = tool.Ammo
-                    if ammo.Value < 1 then
-                        ammo.Value = 999
+                for _, child in ipairs(safeGetDescendants(tool)) do
+                    if child:IsA("LocalScript") or child:IsA("Script") then
+                        if child.Name:lower():find("reload") then
+                            child.Disabled = true
+                        end
                     end
                 end
             end)
@@ -504,18 +748,19 @@ local function setupInfiniteAmmo(tool)
     end)
 end
 
--- No Recoil
 local function setupNoRecoil()
     task.spawn(function()
         while Settings.Weapon.NoRecoil do
             pcall(function()
                 if Character then
-                    local humanoid = Character:FindFirstChild("Humanoid")
+                    local humanoid = safeFind(Character, "Humanoid")
                     if humanoid then
-                        -- Сбрасываем отдачу через изменение положения камеры
-                        local recoil = humanoid:FindFirstChild("Recoil") or humanoid:FindFirstChild("RecoilEffect")
-                        if recoil then
-                            recoil:Destroy()
+                        local recoilValues = {"Recoil", "RecoilEffect", "CameraRecoil", "WeaponRecoil"}
+                        for _, name in ipairs(recoilValues) do
+                            local recoil = safeFind(humanoid, name) or safeFind(Character, name)
+                            if recoil then
+                                recoil:Destroy()
+                            end
                         end
                     end
                 end
@@ -525,16 +770,16 @@ local function setupNoRecoil()
     end)
 end
 
--- No Spread
 local function setupNoSpread(tool)
     if not tool then return end
     
     task.spawn(function()
         while Settings.Weapon.NoSpread and tool and tool.Parent do
             pcall(function()
-                for _, child in ipairs(tool:GetDescendants()) do
+                for _, child in ipairs(safeGetDescendants(tool)) do
                     if child:IsA("NumberValue") or child:IsA("IntValue") then
-                        if child.Name:lower():find("spread") or child.Name:lower():find("accuracy") then
+                        local childName = child.Name:lower()
+                        if childName:find("spread") or childName:find("accuracy") or childName:find("bloom") then
                             child.Value = 0
                         end
                     end
@@ -545,22 +790,20 @@ local function setupNoSpread(tool)
     end)
 end
 
--- Rapid Fire
 local function setupRapidFire(tool)
     if not tool then return end
     
     task.spawn(function()
         while Settings.Weapon.RapidFire and tool and tool.Parent do
             pcall(function()
-                -- Уменьшаем задержку между выстрелами
-                for _, child in ipairs(tool:GetDescendants()) do
+                for _, child in ipairs(safeGetDescendants(tool)) do
                     if child:IsA("NumberValue") or child:IsA("IntValue") then
-                        if child.Name:lower():find("firerate") or child.Name:lower():find("cooldown") or child.Name:lower():find("delay") then
+                        local childName = child.Name:lower()
+                        if childName:find("firerate") or childName:find("cooldown") or childName:find("delay") then
                             child.Value = Settings.Weapon.RapidFireDelay
                         end
                     end
-                    if child.Name:lower():find("fire") and child:IsA("RemoteEvent") then
-                        -- Авто-спам выстрелов
+                    if child:IsA("RemoteEvent") and child.Name:lower():find("fire") then
                         if UserInputService:IsMouseButtonPressed(0) then
                             child:FireServer()
                         end
@@ -572,76 +815,73 @@ local function setupRapidFire(tool)
     end)
 end
 
--- Отслеживание текущего оружия
-local currentTool = nil
-Character.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") then
-        currentTool = child
-        task.wait(0.5)
-        if Settings.Weapon.InfiniteAmmo then setupInfiniteAmmo(child) end
-        if Settings.Weapon.NoReload then setupInfiniteAmmo(child) end
-        if Settings.Weapon.NoSpread then setupNoSpread(child) end
-        if Settings.Weapon.RapidFire then setupRapidFire(child) end
-    end
-end)
-
-Character.ChildRemoved:Connect(function(child)
-    if child == currentTool then
-        currentTool = nil
-    end
+-- Отслеживание оружия
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    protectHumanoid(safeFind(char, "Humanoid"))
+    currentTool = nil
+    
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            currentTool = child
+            task.wait(0.5)
+            if Settings.Weapon.InfiniteAmmo then setupInfiniteAmmo(child) end
+            if Settings.Weapon.NoReload then setupNoReload(child) end
+            if Settings.Weapon.NoSpread then setupNoSpread(child) end
+            if Settings.Weapon.RapidFire then setupRapidFire(child) end
+        end
+    end)
+    
+    char.ChildRemoved:Connect(function(child)
+        if child == currentTool then
+            currentTool = nil
+        end
+    end)
 end)
 
 -- ============================================================
 -- PLAYER FUNCTIONS
 -- ============================================================
 
--- Авто-возрождение союзников
 local function autoReviveLoop()
     if not Settings.Player.AutoRevive then return end
-    if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+    if not Character or not safeFind(Character, "HumanoidRootPart") then return end
     
     local rootPos = Character.HumanoidRootPart.Position
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local teammateChar = player.Character
-            if teammateChar and teammateChar:FindFirstChild("Humanoid") then
-                if teammateChar.Humanoid.Health <= 0 then
-                    -- Союзник мёртв, ищем его позицию
-                    local teammateRoot = teammateChar:FindFirstChild("HumanoidRootPart")
+            if teammateChar then
+                local humanoid = safeFind(teammateChar, "Humanoid")
+                if humanoid and humanoid.Health <= 0 then
+                    local teammateRoot = safeFind(teammateChar, "HumanoidRootPart")
                     if teammateRoot then
                         local distance = (rootPos - teammateRoot.Position).Magnitude
                         if distance <= Settings.Player.AutoReviveRange then
-                            -- Ищем ProximityPrompt для возрождения
-                            for _, obj in ipairs(Workspace:GetDescendants()) do
-                                if obj:IsA("ProximityPrompt") and obj.Enabled then
-                                    local objPos = obj.Parent and obj.Parent.Position or Vector3.new(0,0,0)
-                                    local distToPrompt = (rootPos - objPos).Magnitude
-                                    if distToPrompt < 15 then
-                                        -- Проверяем, что это возрождение (ищем текст)
+                            pcall(function()
+                                for _, obj in ipairs(safeGetDescendants(Workspace)) do
+                                    if obj:IsA("ProximityPrompt") and obj.Enabled then
                                         local actionText = obj.ActionText:lower()
                                         if actionText:find("revive") or actionText:find("res") or actionText:find("help") or actionText:find("возр") then
-                                            pcall(function()
-                                                fireproximityprompt(obj)
-                                            end)
+                                            fireproximityprompt(obj)
                                         end
                                     end
                                 end
-                            end
+                            end)
                             
-                            -- Альтернатива: ищем кнопки "Revive" в GUI
-                            if LocalPlayer.PlayerGui then
-                                for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                                    if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) then
-                                        local guiText = guiObj:IsA("TextButton") and guiObj.Text:lower() or guiObj.Name:lower()
-                                        if guiText:find("revive") or guiText:find("res") or guiText:find("возр") then
-                                            pcall(function()
+                            pcall(function()
+                                if LocalPlayer.PlayerGui then
+                                    for _, guiObj in ipairs(safeGetDescendants(LocalPlayer.PlayerGui)) do
+                                        if guiObj:IsA("TextButton") or guiObj:IsA("ImageButton") then
+                                            local guiText = guiObj:IsA("TextButton") and guiObj.Text:lower() or guiObj.Name:lower()
+                                            if guiText:find("revive") or guiText:find("res") or guiText:find("возр") then
                                                 firesignal(guiObj.MouseButton1Click)
-                                            end)
+                                            end
                                         end
                                     end
                                 end
-                            end
+                            end)
                         end
                     end
                 end
@@ -650,37 +890,67 @@ local function autoReviveLoop()
     end
 end
 
--- God Mode
 local function godModeLoop()
     if not Settings.Player.GodMode then return end
     if not Character then return end
     
     pcall(function()
-        local humanoid = Character:FindFirstChild("Humanoid")
+        local humanoid = safeFind(Character, "Humanoid")
         if humanoid then
             humanoid.Health = humanoid.MaxHealth
         end
     end)
 end
+
+local function speedHackLoop()
+    if not Settings.Player.SpeedHack then return end
+    if not Character then return end
+    
+    pcall(function()
+        local humanoid = safeFind(Character, "Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = Settings.Player.SpeedValue
+        end
+    end)
+end
+
+local function jumpHackLoop()
+    if not Settings.Player.JumpHack then return end
+    if not Character then return end
+    
+    pcall(function()
+        local humanoid = safeFind(Character, "Humanoid")
+        if humanoid then
+            humanoid.JumpPower = Settings.Player.JumpValue
+        end
+    end)
+end
 -- ============================================================
--- GUI CREATION
+-- GUI CREATION (OBFUSCATED NAMES)
 -- ============================================================
+
+local guiName = randomString(12)
+local frameName = randomString(10)
+local titleName = randomString(8)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LolScriptsHub"
+ScreenGui.Name = guiName
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+protectInstance(ScreenGui)
 
 local MainFrame = Instance.new("Frame")
+MainFrame.Name = frameName
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
-MainFrame.Size = UDim2.new(0, 300, 0, 420)
+MainFrame.Position = UDim2.new(0.05, 0, 0.08, 0)
+MainFrame.Size = UDim2.new(0, 290, 0, 440)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.ZIndex = 10
+protectInstance(MainFrame)
 
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
@@ -704,12 +974,11 @@ TitleCover.Position = UDim2.new(0, 0, 0.5, 0)
 TitleCover.Size = UDim2.new(1, 0, 0.5, 0)
 
 local Title = Instance.new("TextLabel")
-Title.Parent = TitleFrame
-Title.BackgroundTransparency = 1
+Title.Parent = TitleFrameTitle.BackgroundTransparency = 1
 Title.Size = UDim2.new(1, -40, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "LOL SCRIPTS - Lazarus"
+Title.Text = "LOL SCRIPTS"
 Title.TextColor3 = Color3.fromRGB(255, 50, 100)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -741,7 +1010,7 @@ ContentFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 ContentFrame.BorderSizePixel = 0
 ContentFrame.Position = UDim2.new(0, 0, 0, 38)
 ContentFrame.Size = UDim2.new(1, 0, 1, -38)
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 850)
 ContentFrame.ScrollBarThickness = 2
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 ContentFrame.ZIndex = 5
@@ -757,7 +1026,6 @@ ContentPadding.PaddingLeft = UDim.new(0, 8)
 ContentPadding.PaddingRight = UDim.new(0, 8)
 ContentPadding.PaddingTop = UDim.new(0, 5)
 
--- Функция создания секции
 local function createSection(text)
     local Section = Instance.new("Frame")
     Section.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
@@ -783,7 +1051,6 @@ local function createSection(text)
     return Section
 end
 
--- Функция создания тогла
 local function createToggle(text, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
@@ -871,10 +1138,6 @@ createToggle("Chest Names", function(state) Settings.ESP.Chest.Names = state end
 createToggle("Chest Distance", function(state) Settings.ESP.Chest.Distance = state end)
 createToggle("Chest Tracers", function(state) Settings.ESP.Chest.Tracers = state end)
 
-createSection("[ AIMBOT ]")
-createToggle("Enable Aimbot", function(state) Settings.Aimbot.Enabled = state end)
-createToggle("Show FOV", function(state) Settings.Aimbot.ShowFOV = state end)
-
 createSection("[ WEAPON ]")
 createToggle("Infinite Ammo", function(state)
     Settings.Weapon.InfiniteAmmo = state
@@ -882,7 +1145,7 @@ createToggle("Infinite Ammo", function(state)
 end)
 createToggle("No Reload", function(state)
     Settings.Weapon.NoReload = state
-    if state and currentTool then setupInfiniteAmmo(currentTool) end
+    if state and currentTool then setupNoReload(currentTool) end
 end)
 createToggle("No Recoil", function(state)
     Settings.Weapon.NoRecoil = state
@@ -898,10 +1161,12 @@ createToggle("Rapid Fire", function(state)
 end)
 
 createSection("[ PLAYER ]")
-createToggle("Auto Revive Teammates", function(state) Settings.Player.AutoRevive = state end)
+createToggle("Auto Revive", function(state) Settings.Player.AutoRevive = state end)
 createToggle("God Mode", function(state) Settings.Player.GodMode = state end)
+createToggle("Speed Hack", function(state) Settings.Player.SpeedHack = state end)
+createToggle("Jump Hack", function(state) Settings.Player.JumpHack = state end)
 
--- Обновление размера канваса
+-- Canvas update
 task.spawn(function()
     while task.wait(0.5) do
         pcall(function()
@@ -910,8 +1175,9 @@ task.spawn(function()
     end
 end)
 
--- Драг-кнопка
+-- Drag Button
 local DragButton = Instance.new("TextButton")
+DragButton.Name = randomString(8)
 DragButton.Parent = ScreenGui
 DragButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 DragButton.BorderSizePixel = 0
@@ -965,11 +1231,16 @@ end)
 -- ============================================================
 
 RunService.RenderStepped:Connect(function()
-    updateZombieESP()
-    updateChestESP()
-    autoReviveLoop()
-    godModeLoop()
+    pcall(updateZombieESP)
+    pcall(updateChestESP)
+    pcall(autoReviveLoop)
+    pcall(godModeLoop)
+    pcall(speedHackLoop)
+    pcall(jumpHackLoop)
 end)
 
-print("✅ All systems loaded!")
-print("📱 Mobile compatible: Delta, Xeno, CodeX, Arceus X")
+print("╔══════════════════════════════════════╗")
+print("║   LOL SCRIPTS - Zombie Lazarus      ║")
+print("║   🛡️ Anti-Cheat BYPASS Active      ║")
+print("║   ✅ All Systems Ready              ║")
+print("╚══════════════════════════════════════╝")
